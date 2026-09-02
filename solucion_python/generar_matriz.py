@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import time
+import sys
 import struct
 
 ROWS = 100_000
@@ -80,4 +81,6 @@ def generar_matriz():
     print(f"Tamano final en disco: {tamano_real:,} bytes ({tamano_real / 1e9:.2f} GB)")
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        ROWS = int(sys.argv[1])
     generar_matriz()

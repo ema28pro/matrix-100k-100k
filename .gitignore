@@ -7,6 +7,7 @@ bin/
 # Archivos de datos pesados (>1 GB)
 *.bin
 data/*.bin
+*.h5
 
 # Salidas de imagen generadas
 *.bmp

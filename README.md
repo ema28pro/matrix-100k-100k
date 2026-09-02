@@ -51,6 +51,7 @@ lab 1/
 │
 ├── solucion_python/                                  # Implementación Actual y Herramientas
 │   ├── generar_matriz.py                             # Generador oficial con Cabecera Estándar HDF5 (2-bits + separador 0xFF)
+│   ├── generar_hdf5_oficial.py                       # Generador en formato HDF5 oficial (.h5) con h5py (para myHDF5 y HDFView)
 │   ├── generar_matriz_pequena.py                     # Generador de matriz pequeña de control (con filas de '2's para verificación)
 │   ├── verificar_matriz.py                           # Verificador universal (detecta cabecera HDF5 o clásica de 16B)
 │   ├── exportar_bmp.py                               # Renderizador BMP universal (paletas RGB, CMY y Grises)
@@ -185,10 +186,20 @@ hexdump -C -n 64 matriz_100k.bin
 ### Método 5: Proyección Procedural de Chunks en Bloc de Notas ([`visor_procedural_txt.py`](solucion_python/visor_procedural_txt.py))
 Genera y proyecta fragmentos/ventanas 2D de la matriz formateadas en texto plano (`vista_matriz.txt`), abriendo automáticamente el Bloc de Notas (*Notepad*) y actualizándose en tiempo real:
 ```powershell
-# Iniciar visor en modo stream (actualiza la ventana en vivo cada segundo):
-python solucion_python/visor_procedural_txt.py stream 20 1.0
+# Iniciar navegador interactivo de chunks (datos puros sin cabeceras):
+python solucion_python/visor_procedural_txt.py
 
 # O seguir el streaming en vivo desde PowerShell:
 Get-Content .\vista_matriz.txt -Wait
 ```
-- Muestra una regla de columnas, coordenadas absolutas de la matriz, leyenda de celdas (`.` = 0, `1` = 1, `#` = 2) y telemetría del chunk en tiempo de ejecución.
+- Permite avanzar entre chunks horizontal y verticalmente desde la consola, actualizando los números en vivo en el Bloc de Notas.
+
+### Método 6: Inspección y Visualización en Línea (Web)
+1. **[HexEd.it](https://hexed.it/):**
+   - Arrastra `matriz_100k.bin` para inspeccionar la firma canónica HDF5 (`\x89HDF\r\n\x1a\n`), la cabecera de 64 bytes y los datos empaquetados directamente en el navegador.
+2. **[myHDF5 (The HDF Group)](https://myhdf5.hdfgroup.org/):**
+   - Para abrir el archivo en el visor oficial de la NASA/HDF Group, genera el archivo `.h5` estándar:
+     ```powershell
+     python solucion_python/generar_hdf5_oficial.py 100 1000
+     ```
+   - Arrastra `matriz_oficial.h5` a **myHDF5** para explorar interactivamente el Dataset, atributos, compresión y chunks paginados sin ningún error.
