@@ -1,0 +1,3 @@
+# Dependencias requeridas para el Laboratorio 1 (Solución Python)
+# Las librerias struct, os, sys, time son estandar de Python 3.8+
+numpy>=1.24.0

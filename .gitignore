@@ -1,0 +1,22 @@
+# Binarios compilados
+*.exe
+*.o
+*.obj
+bin/
+
+# Archivos de datos pesados (>1 GB)
+*.bin
+data/*.bin
+
+# Salidas de imagen generadas
+*.bmp
+
+# Salidas de visualizacion temporal
+vista_matriz.txt
+
+# Python cache
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
