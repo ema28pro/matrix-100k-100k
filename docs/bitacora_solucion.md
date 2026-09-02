@@ -44,7 +44,9 @@ Tamaño total = (100,000 * 100,000) / 8 = 1,250,000,000 bytes (~1.16 GB).
 #### 2. Ventaja: Acceso Aleatorio Directo $O(1)$
 - **¿Qué es el acceso aleatorio directo?:** Es la capacidad de consultar o saltar a **cualquier celda arbitraria `(fila, columna)` de forma instantánea**, sin necesidad de leer o escanear todas las celdas anteriores.
 - **¿Por qué funciona en $O(1)$?:** Como todas las celdas miden exactamente 1 bit y no hay delimitadores de tamaño variable, el procesador calcula directamente la posición física en el archivo con una operación matemática básica:
-  $$\text{byte\_offset} = \left\lfloor \frac{\text{fila} \times 100000 + \text{columna}}{8} \right\rfloor$$
+  ```text
+  offset_byte = (fila * 100000 + columna) // 8
+  ```
   Luego, el disco salta directamente a ese byte con `seek()` y lo lee en 1 milisegundo.
 
 #### 3. El Problema y la Caída en Cuenta (¿Por qué no bastaba?)
@@ -133,7 +135,9 @@ A nivel teórico y de ingeniería de software avanzada (particularmente en **Sis
   En literatura canónica (*Database System Concepts* de Silberschatz, Korth y Sudarshan), los separadores (`\n`, comas, bytes centinela) o tablas de punteros (*slotted pages*) son necesarios únicamente en **registros de longitud variable** (`VARCHAR`, `TEXT`, CSV), donde el tamaño de cada fila es impredecible.
 - **¿Qué ocurre en registros de longitud fija?:**  
   Cuando todas las filas miden exactamente la misma cantidad de bytes (en este caso, 25,000 bytes de datos), la dirección de cualquier fila $i$ y celda $(i, j)$ es **puramente algebraica**:
-  $$\text{offset} = \text{CABECERA\_HDF5} + (i \times \text{ANCHO\_FILA}) + \left\lfloor \frac{j}{4} \right\rfloor$$
+  ```text
+  offset = CABECERA_HDF5 + (i * ANCHO_TOTAL_FILA) + (j // 4)
+  ```
 - **Sugerencia Teórica:**  
   Bajo este principio, en un sistema de producción masivo los separadores de fila podrían omitirse para ahorrar espacio adicional sin perder el acceso aleatorio $O(1)$. No obstante, para satisfacer el objetivo pedagógico del laboratorio de contar con un **delimitador explícito de fin de fila**, la implementación adopta el byte centinela `11111111` (`0xFF`).
 

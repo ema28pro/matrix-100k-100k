@@ -83,11 +83,11 @@ Total exacto en disco = 64 bytes cabecera HDF5 + 2,500,100,000 bytes = 2,500,100
 
 ### Algoritmo de Indexación Directa $O(1)$:
 Para consultar la celda `(fila, columna)`:
-1. $\text{Ancho total por fila} = 25,000\text{ (datos)} + 1\text{ (separador 0xFF)} = 25,001\text{ bytes}$
-2. $\text{Byte offset en disco} = 64 + (\text{fila} \times 25,001) + \left\lfloor \frac{\text{columna}}{4} \right\rfloor$
-3. $\text{Posición en byte} = \text{columna} \pmod 4$
-4. $\text{Shift} = (3 - \text{Posición}) \times 2$
-5. $\text{Valor celda} = (\text{byte\_leído} \gg \text{Shift}) \ \& \ 3$
+1. **Ancho total por fila:** `25,000 (datos) + 1 (separador 0xFF) = 25,001 bytes`
+2. **Offset en disco:** `64 + (fila * 25001) + (columna // 4)`
+3. **Posición dentro del byte:** `columna % 4`
+4. **Desplazamiento (Shift):** `(3 - posición) * 2`
+5. **Valor de la celda:** `(byte_leido >> Shift) & 3`
 
 ---
 
