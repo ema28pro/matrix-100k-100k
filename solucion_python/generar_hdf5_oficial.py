@@ -1,10 +1,8 @@
-# Laboratorio 1: Generador Matriz con Formato y Cabecera Oficial HDF5 (.h5 / .bin)
-# Utiliza la MISMA logica que generar_matriz.py:
-#   - Celdas de 2 bits (valores posibles: 0, 1, 2)
-#   - Empaquetamiento de 4 celdas por byte (COLS // 4)
-#   - 1 byte separador centinela 0xFF (11111111) al final de cada fila
-#   - Generacion progresiva en disco por bloques/chunks (Demand Paging)
-#   - Contenedor y Cabecera 100% estandar oficial HDF5 (compatible con myHDF5 y HDFView)
+# Laboratorio 1: Generador Matriz con Formato y Cabecera Oficial HDF5 (.bin / .h5)
+# Compatible al 100% con visores web oficiales como myHDF5 (https://myhdf5.hdfgroup.org/)
+# Incluye dos Datasets:
+#   1. 'matriz' -> Dimensiones completas (ROWS x COLS) con valores reales directos (0, 1, 2)
+#   2. 'matriz_empaquetada_2bits' -> Formato fisico en bytes (ROWS x 25,001) con separador 0xFF
 
 import os
 import sys
@@ -12,10 +10,10 @@ import time
 import h5py
 import numpy as np
 
-ROWS = 100_000
+ROWS = 100
 COLS = 100_000
 CHUNK = 1_000
-ARCHIVO_DEFECTO = "matriz_100k.h5"
+ARCHIVO_DEFECTO = "matriz_100k.bin"
 
 def generar_matriz_hdf5(filas=None, cols=None, archivo_salida=None):
     if filas is None:
@@ -25,43 +23,54 @@ def generar_matriz_hdf5(filas=None, cols=None, archivo_salida=None):
     if archivo_salida is None:
         archivo_salida = ARCHIVO_DEFECTO
 
-    # Ajuste para empaquetamiento exacto de 2 bits (4 celdas por byte)
+    # Ajuste para que las columnas sean multiplo de 4 para empaquetado de 2 bits
     if cols % 4 != 0:
         cols = ((cols // 4) + 1) * 4
 
     bytes_datos_fila = cols // 4
-    ancho_fila = bytes_datos_fila + 1  # Datos + 1 byte separador 0xFF
+    ancho_fila = bytes_datos_fila + 1  # 25,000 B datos + 1 B separador 0xFF
 
     print("=================================================================")
-    print(" GENERADOR MATRIZ CON CABECERA ESTANDAR OFICIAL HDF5")
-    print(" (2-Bits por celda + Separador 0xFF + Header HDF5 oficial)")
+    print(" GENERADOR MATRIZ OFICIAL HDF5 (100,000 Columnas Nativas + 2-Bits)")
     print("=================================================================")
     print(f"Destino:                 {os.path.abspath(archivo_salida)}")
-    print(f"Dimensiones de Matriz:   {filas:,} filas x {cols:,} columnas")
-    print(f"Codificacion:            2 bits por celda (valores: 0, 1, 2)")
-    print(f"Empaquetamiento:         4 celdas por byte ({bytes_datos_fila:,} bytes de datos por fila)")
-    print(f"Separador de Fin Fila:   1 byte centinela 0xFF (11111111 = 255)")
-    print(f"Ancho total por fila:    {ancho_fila:,} bytes en disco")
-    print(f"Tamano de lote (Chunk):  {CHUNK:,} filas por escritura a disco\n")
+    print(f"Dimensiones Reales:      {filas:,} filas x {cols:,} columnas")
+    print(f"Valores en celdas:       0, 1 y 2 (tipo uint8)")
+    print(f"Dataset 1 ('matriz'):    {filas:,} x {cols:,} celdas (visualizable en myHDF5)")
+    print(f"Dataset 2 ('empaquetado'):{filas:,} x {ancho_fila:,} bytes (2-bits + separador 0xFF)")
+    print(f"Tamano de lote (Chunk):  {CHUNK:,} filas por escritura\n")
 
     inicio = time.time()
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(42)
 
     # 1. Crear el contenedor con cabecera estandar HDF5 oficial
     with h5py.File(archivo_salida, "w") as f:
-        # Metadatos del Laboratorio (legibles en myHDF5)
-        f.attrs["estandar"] = "HDF5 Oficial"
+        # Atributos de metadatos de nivel superior
+        f.attrs["estandar"] = "HDF5 Oficial (NASA / The HDF Group)"
         f.attrs["filas"] = filas
         f.attrs["columnas"] = cols
+        f.attrs["valores_permitidos"] = "0, 1, 2"
         f.attrs["bits_por_celda"] = 2
         f.attrs["separador_fin_fila"] = "0xFF (11111111 = 255)"
-        f.attrs["ancho_fila_bytes"] = ancho_fila
-        f.attrs["descripcion"] = "Matriz de 100k x 100k con celdas de 2 bits y delimitador centinela 0xFF"
+        f.attrs["ancho_empaquetado_bytes"] = ancho_fila
+        f.attrs["descripcion"] = "Matriz 100k x 100k con celdas de 2 bits en almacenamiento secundario"
 
-        # Dataset que almacena exactamente las filas binarias (25,000 B datos + 1 B separador 0xFF)
         chunk_filas = min(CHUNK, filas)
-        dset = f.create_dataset(
-            "matriz_binaria",
+        chunk_cols_dset = min(1000, cols)
+
+        # DATASET 1: La matriz con sus columnas completas para que el sitio web muestre las 100,000 columnas y 0, 1, 2
+        dset_visual = f.create_dataset(
+            "matriz",
+            shape=(filas, cols),
+            dtype=np.uint8,
+            chunks=(chunk_filas, chunk_cols_dset),
+            compression="gzip",
+            compression_opts=1
+        )
+
+        # DATASET 2: La representacion fisica empaquetada a 2 bits con el byte separador 0xFF al final
+        dset_empaquetado = f.create_dataset(
+            "matriz_empaquetada_2bits_0xFF",
             shape=(filas, ancho_fila),
             dtype=np.uint8,
             chunks=(chunk_filas, ancho_fila),
@@ -69,38 +78,35 @@ def generar_matriz_hdf5(filas=None, cols=None, archivo_salida=None):
             compression_opts=1
         )
 
-        # 2. Generacion progresiva en bloques (sin cargar la matriz completa en RAM)
+        # 2. Generacion progresiva en bloques (Demand Paging sin saturar RAM)
         for i in range(0, filas, CHUNK):
             n_filas = min(CHUNK, filas - i)
+            # Generamos celdas con valores 0, 1, 2
             bloque = rng.integers(0, 3, size=(n_filas, cols), dtype=np.uint8)
 
-            # Empaquetamos 4 celdas de 2 bits por cada byte
+            # Volcamos al Dataset 1 (Matriz de 100,000 columnas directas)
+            dset_visual[i:i + n_filas, :] = bloque
+
+            # Empaquetamos a 2 bits (4 celdas por byte) para el Dataset 2
             v = bloque.reshape(n_filas, -1, 4)
             datos_bytes = (v[:, :, 0] << 6) | (v[:, :, 1] << 4) | (v[:, :, 2] << 2) | v[:, :, 3]
-
-            # Columna separadora 0xFF (11111111)
             sep_col = np.full((n_filas, 1), 0xFF, dtype=np.uint8)
+            fila_empaquetada = np.hstack([datos_bytes, sep_col])
 
-            # Fila completa con su byte separador al final
-            fila_completa = np.hstack([datos_bytes, sep_col])
+            # Volcamos al Dataset 2
+            dset_empaquetado[i:i + n_filas, :] = fila_empaquetada
 
-            # Volcar el chunk directamente a disco en el contenedor HDF5
-            dset[i:i + n_filas, :] = fila_completa
-
-            if (i // CHUNK) % 10 == 0 or (i + n_filas) == filas:
-                progreso = ((i + n_filas) / filas) * 100
-                print(f"  -> Lote guardado: filas {i + n_filas:,} / {filas:,} ({progreso:.1f}%)")
+            progreso = ((i + n_filas) / filas) * 100
+            print(f"  -> Filas {i + n_filas:,} / {filas:,} guardadas ({progreso:.1f}%)")
 
     duracion = time.time() - inicio
     tamano_disco = os.path.getsize(archivo_salida)
     print(f"\n[OK] Generacion exitosa en {duracion:.2f} segundos.")
-    print(f"Tamano final en disco: {tamano_disco:,} bytes (~{tamano_disco / 1e6:.2f} MB)")
+    print(f"Tamano en disco: {tamano_disco:,} bytes (~{tamano_disco / 1e6:.2f} MB)")
     print(f"Archivo listo: {os.path.abspath(archivo_salida)}")
-    print("Ya puedes arrastrar este archivo a https://myhdf5.hdfgroup.org/ sin errores!")
+    print("Ya puedes arrastrarlo a https://myhdf5.hdfgroup.org/ !")
 
 if __name__ == "__main__":
-    # Permite personalizar filas y columnas por linea de comandos:
-    # Ejemplo: python generar_hdf5_oficial.py 100 100000 matriz_100k.h5
     n_filas = int(sys.argv[1]) if len(sys.argv) > 1 else ROWS
     n_cols = int(sys.argv[2]) if len(sys.argv) > 2 else COLS
     salida = sys.argv[3] if len(sys.argv) > 3 else ARCHIVO_DEFECTO
