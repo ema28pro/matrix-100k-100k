@@ -87,7 +87,7 @@ Para consultar la celda `(fila, columna)`:
 2. $\text{Byte offset en disco} = 64 + (\text{fila} \times 25,001) + \left\lfloor \frac{\text{columna}}{4} \right\rfloor$
 3. $\text{Posición en byte} = \text{columna} \pmod 4$
 4. $\text{Shift} = (3 - \text{Posición}) \times 2$
-5. $\text{Valor celda} = (\text{byte} \gg \text{Shift}) \ \& \ 3$
+5. $\text{Valor celda} = (\text{byte} \gg \text{Shift}) \text{ AND } 3$
 
 ---
 
