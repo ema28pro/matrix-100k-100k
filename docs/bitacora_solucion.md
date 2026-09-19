@@ -121,7 +121,7 @@ La **Etapa 3** resuelve de manera integral todos los requisitos solicitados:
 1. **Archivo Autodescriptivo con Estándar HDF5:** Cabecera de 64 bytes con firma mágica `\x89HDF\r\n\x1a\n` y dimensiones `(FILAS, COLUMNAS)`.
 2. **Valores Múltiples:** Celdas capaces de almacenar valores del 0 al 2 sin restricción unaria.
 3. **Separador Inequívoco y Alineado:** Un byte entero `0xFF` (`11111111` = 255) al final de cada fila que delimita formalmente la fila y respeta la frontera de bytes ($25,001\text{ bytes por fila}$).
-4. **Implementación Completa:** Esta es la arquitectura desarrollada en los programas principales de [`solucion_cpp/`](../solucion_cpp/crear_matriz.cpp) y [`solucion_python/`](../solucion_python/generar_matriz.py).
+4. **Implementación Completa:** Esta es la arquitectura desarrollada en los programas principales de [`solucion_vieja_cpp/`](../solucion_vieja_cpp/crear_matriz.cpp) y [`solucion_python/`](../solucion_python/generar_matriz.py).
 
 ---
 
@@ -136,6 +136,14 @@ A nivel teórico y de ingeniería de software avanzada (particularmente en **Sis
   $$\text{offset} = \text{CABECERA}_{\text{HDF5}} + (i \times \text{ANCHO}_{\text{TOTAL}}) + \left\lfloor \frac{j}{4} \right\rfloor$$
 - **Sugerencia Teórica:**  
   Bajo este principio, en un sistema de producción masivo los separadores de fila podrían omitirse para ahorrar espacio adicional sin perder el acceso aleatorio $O(1)$. No obstante, para satisfacer el objetivo pedagógico del laboratorio de contar con un **delimitador explícito de fin de fila**, la implementación adopta el byte centinela `11111111` (`0xFF`).
+
+#### Algoritmo Algebraico de Extracción de Celdas de 2 Bits:
+Para consultar cualquier coordenada `(fila, columna)` en disco sin cargar el archivo a memoria RAM:
+1. $\text{Ancho total por fila} = 25,000\text{ (datos)} + 1\text{ (separador 0xFF)} = 25,001\text{ bytes}$
+2. $\text{Byte offset en disco} = 64 + (\text{fila} \times 25,001) + \left\lfloor \frac{\text{columna}}{4} \right\rfloor$
+3. $\text{Posición de la celda en el byte} = \text{columna} \pmod 4$
+4. $\text{Desplazamiento binario (shift)} = (3 - \text{Posición}) \times 2$
+5. $\text{Valor de la celda} = (\text{byte} \gg \text{shift}) \ \& \ 3$
 
 ---
 
@@ -180,12 +188,11 @@ A nivel teórico y de ingeniería de software avanzada (particularmente en **Sis
 ---
 
 ### Desafío 3: Optimización en la Manipulación, Creación, Almacenamiento y Lectura
-- **Problema:** Si el archivo contuviera separadores o se leyera secuencialmente para buscar una coordenada $(i, j)$, el costo sería de tiempo lineal $O(N)$.
+- **Problema:** Si el archivo contuviera delimitadores variables o se leyera secuencialmente para buscar una coordenada $(i, j)$, el costo sería de tiempo lineal $O(N)$.
 - **Solución:**
-  - **Row-Major Direct Offset $O(1)$:** Cualquier celda se ubica instantáneamente mediante una operación aritmética:
-    $$\text{Índice Lineal de Bits} = \text{fila} \times 100000 + \text{columna}$$
-    $$\text{Offset en Disco} = 16 + \left\lfloor \frac{\text{Índice Lineal de Bits}}{8} \right\rfloor$$
-  - **Demand Paging:** La consulta con `archivo.seekg(offset)` hace que el sistema operativo transfiera únicamente el byte/sector requerido desde el disco a la memoria caché, sin tocar el resto del archivo de 1.25 GB.
+  - **Row-Major Direct Offset $O(1)$:** Cualquier celda se ubica instantáneamente mediante una operación aritmética directa sin escaneo:
+    $$\text{Offset en Disco} = 64 + (\text{fila} \times 25,001) + \left\lfloor \frac{\text{columna}}{4} \right\rfloor$$
+  - **Demand Paging:** La consulta con `archivo.seek(offset)` hace que el sistema operativo transfiera únicamente el byte/sector requerido desde el disco a la memoria caché, sin tocar el resto del archivo de 2.33 GiB.
 
 ---
 
